@@ -1,4 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { normalizePayload } from "./lib/employeePayload.js";
+import { sortEmployeesByIdentificator } from "./lib/sortEmployees.js";
+import {
+  createEmployee as apiCreateEmployee,
+  deleteEmployee as apiDeleteEmployee,
+  fetchEmployees as apiFetchEmployees,
+  updateEmployee as apiUpdateEmployee,
+} from "./lib/apiClient.js";
 
 const API = "http://localhost:8081/api";
 
@@ -10,17 +18,6 @@ const empty = {
   position: "",
   salary: "",
 };
-
-function normalizePayload(form) {
-  return {
-    identificator: Number(form.identificator),
-    name: form.name.trim(),
-    surname: form.surname.trim(),
-    patronymic: form.patronymic.trim() || null,
-    position: form.position.trim(),
-    salary: Number(form.salary),
-  };
-}
 
 function Modal({ open, title, children, onClose }) {
   if (!open) return null;
@@ -62,7 +59,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   const sorted = useMemo(() => {
-    return [...employees].sort((a, b) => (a.identificator ?? 0) - (b.identificator ?? 0));
+    return sortEmployeesByIdentificator(employees);
   }, [employees]);
 
   function showToast(type, text) {
@@ -78,15 +75,16 @@ export default function App() {
   async function loadEmployees() {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/employees`);
-      if (!res.ok) {
-        showToast("err", `Не удалось загрузить список (status ${res.status})`);
-        return;
-      }
-      const data = await res.json();
+      const data = await apiFetchEmployees();
       setEmployees(data);
     } catch (e) {
-      showToast("err", `Ошибка сети: ${String(e)}`);
+      const msg = String(e);
+      if (msg.includes("fetchEmployees failed:")) {
+        const status = msg.split("fetchEmployees failed:").pop()?.trim();
+        showToast("err", `Не удалось загрузить список (status ${status})`);
+      } else {
+        showToast("err", `Ошибка сети: ${msg}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -99,26 +97,17 @@ export default function App() {
   async function createEmployee(e) {
     e.preventDefault();
     try {
-      const res = await fetch(`${API}/employees`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(normalizePayload(createForm)),
-      });
-
-      if (res.status === 409) {
-        showToast("err", "Сотрудник с таким identificator уже существует (409).");
-        return;
-      }
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        showToast("err", `Ошибка создания (status ${res.status}) ${text}`);
-        return;
-      }
+      await apiCreateEmployee(normalizePayload(createForm));
 
       setCreateForm(empty);
       showToast("ok", "Сотрудник добавлен");
       await loadEmployees();
     } catch (e) {
+      if (String(e) === "Error: conflict") {
+        showToast("err", "Сотрудник с таким identificator уже существует (409)."
+        );
+        return;
+      }
       showToast("err", `Ошибка сети: ${String(e)}`);
     }
   }
@@ -144,26 +133,17 @@ export default function App() {
     if (!editing?.id) return;
 
     try {
-      const res = await fetch(`${API}/employees/${editing.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(normalizePayload(editForm)),
-      });
-
-      if (res.status === 404) {
-        showToast("err", "Сотрудник не найден (404).");
-        return;
-      }
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        showToast("err", `Ошибка обновления (status ${res.status}) ${text}`);
-        return;
-      }
+      await apiUpdateEmployee(editing.id, normalizePayload(editForm));
 
       closeEdit();
       showToast("ok", "Данные обновлены");
       await loadEmployees();
     } catch (e) {
+      if (String(e) === "Error: not_found") {
+        showToast("err", "Сотрудник не найден (404)."
+        );
+        return;
+      }
       showToast("err", `Ошибка сети: ${String(e)}`);
     }
   }
@@ -173,22 +153,16 @@ export default function App() {
     if (!ok) return;
 
     try {
-      // delete by identificator (по твоему контроллеру)
-      const res = await fetch(`${API}/employees/${emp.identificator}`, { method: "DELETE" });
-
-      if (res.status === 404) {
-        showToast("err", "Сотрудник не найден (404).");
-        return;
-      }
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        showToast("err", `Ошибка удаления (status ${res.status}) ${text}`);
-        return;
-      }
+      await apiDeleteEmployee(emp.identificator);
 
       showToast("ok", "Сотрудник удалён");
       await loadEmployees();
     } catch (e) {
+      if (String(e) === "Error: not_found") {
+        showToast("err", "Сотрудник не найден (404)."
+        );
+        return;
+      }
       showToast("err", `Ошибка сети: ${String(e)}`);
     }
   }
