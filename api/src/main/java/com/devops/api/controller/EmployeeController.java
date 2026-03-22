@@ -14,8 +14,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = {
-        "http://localhost:5173",
-        "http://localhost:3000"
+        "*"
 })
 public class EmployeeController {
     private final EmployeeRepository repository;
