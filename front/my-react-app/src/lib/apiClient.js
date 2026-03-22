@@ -1,4 +1,4 @@
-const API = "http://localhost:8081/api";
+const API = "/api";
 
 async function readTextSafe(res) {
   try {
@@ -26,6 +26,7 @@ export async function createEmployee(payload, fetchImpl = fetch) {
   if (res.status === 409) {
     throw new Error("conflict");
   }
+
   if (!res.ok) {
     const text = await readTextSafe(res);
     throw new Error(`createEmployee failed: ${res.status} ${text}`.trim());
@@ -44,6 +45,7 @@ export async function updateEmployee(id, payload, fetchImpl = fetch) {
   if (res.status === 404) {
     throw new Error("not_found");
   }
+
   if (!res.ok) {
     const text = await readTextSafe(res);
     throw new Error(`updateEmployee failed: ${res.status} ${text}`.trim());
@@ -53,11 +55,14 @@ export async function updateEmployee(id, payload, fetchImpl = fetch) {
 }
 
 export async function deleteEmployee(identificator, fetchImpl = fetch) {
-  const res = await fetchImpl(`${API}/employees/${identificator}`, { method: "DELETE" });
+  const res = await fetchImpl(`${API}/employees/${identificator}`, {
+    method: "DELETE",
+  });
 
   if (res.status === 404) {
     throw new Error("not_found");
   }
+
   if (!res.ok) {
     const text = await readTextSafe(res);
     throw new Error(`deleteEmployee failed: ${res.status} ${text}`.trim());

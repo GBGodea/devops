@@ -1,9 +1,7 @@
-version: "3.9"
-
 services:
-  postgres:
+  db:
     image: postgres:16
-    container_name: my-postgres
+    container_name: devops-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: mydb
@@ -13,10 +11,44 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    image: godofbros1/devops-backend:latest
+    container_name: devops-backend
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/mydb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    ports:
+      - "8081:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./front/my-react-app
+      dockerfile: Dockerfile
+    image: godofbros1/devops-frontend:latest
+    container_name: devops-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: my-pgadmin
+    container_name: devops-pgadmin
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
@@ -24,7 +56,7 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      - postgres
+      - db
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
