@@ -20,9 +20,92 @@ data:
           "type": "row"
         },
         {
+          "title": "Active Pods",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 4, "x": 0, "y": 1 },
+          "id": 13,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 3 },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": { "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" },
+          "targets": [
+            {
+              "expr": "count(up{namespace=\"devops\", job=\"kubernetes-pods\"} == 1)",
+              "legendFormat": "All Up",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Backend Pods",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 4, "x": 4, "y": 1 },
+          "id": 14,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 3 },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": { "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" },
+          "targets": [
+            {
+              "expr": "count(up{namespace=\"devops\", pod=~\"backend.*\"} == 1)",
+              "legendFormat": "Backend",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Active Pods Over Time",
+          "type": "timeseries",
+          "gridPos": { "h": 6, "w": 16, "x": 8, "y": 1 },
+          "id": 15,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "fillOpacity": 15, "lineWidth": 2 }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            {
+              "expr": "count(up{namespace=\"devops\", pod=~\"backend.*\"} == 1)",
+              "legendFormat": "backend pods",
+              "refId": "A"
+            },
+            {
+              "expr": "count(up{namespace=\"devops\", job=\"kubernetes-pods\"} == 1)",
+              "legendFormat": "all pods",
+              "refId": "B"
+            }
+          ]
+        },
+        {
           "title": "CPU Usage per Pod",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
           "id": 1,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
@@ -44,7 +127,7 @@ data:
         {
           "title": "JVM Memory Used",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
           "id": 2,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
@@ -66,7 +149,7 @@ data:
         {
           "title": "HTTP Request Rate per Pod",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
           "id": 3,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
@@ -88,7 +171,7 @@ data:
         {
           "title": "HTTP Request Duration p95 per Pod",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
           "id": 4,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
@@ -110,7 +193,7 @@ data:
         {
           "title": "HTTP Requests by Status Code",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
           "id": 5,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
@@ -132,7 +215,7 @@ data:
         {
           "title": "JVM Threads",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
           "id": 6,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
@@ -158,7 +241,7 @@ data:
         },
         {
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
           "id": 200,
           "title": "Product Metrics",
           "type": "row"
@@ -166,7 +249,7 @@ data:
         {
           "title": "Employees in Database",
           "type": "stat",
-          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 26 },
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 33 },
           "id": 7,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
@@ -194,7 +277,7 @@ data:
         {
           "title": "Employees Created (total)",
           "type": "stat",
-          "gridPos": { "h": 6, "w": 6, "x": 6, "y": 26 },
+          "gridPos": { "h": 6, "w": 6, "x": 6, "y": 33 },
           "id": 8,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
@@ -220,7 +303,7 @@ data:
         {
           "title": "Employees Updated (total)",
           "type": "stat",
-          "gridPos": { "h": 6, "w": 6, "x": 12, "y": 26 },
+          "gridPos": { "h": 6, "w": 6, "x": 12, "y": 33 },
           "id": 9,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
@@ -246,7 +329,7 @@ data:
         {
           "title": "Employees Deleted (total)",
           "type": "stat",
-          "gridPos": { "h": 6, "w": 6, "x": 18, "y": 26 },
+          "gridPos": { "h": 6, "w": 6, "x": 18, "y": 33 },
           "id": 10,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
@@ -272,7 +355,7 @@ data:
         {
           "title": "Employee Operations Rate",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 39 },
           "id": 11,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
@@ -304,7 +387,7 @@ data:
         {
           "title": "List Employees Request Rate per Pod",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 39 },
           "id": 12,
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
