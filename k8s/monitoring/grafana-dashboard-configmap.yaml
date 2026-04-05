@@ -1,0 +1,336 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: devops
+data:
+  devops-dashboard.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "id": 100,
+          "title": "Infrastructure Metrics",
+          "type": "row"
+        },
+        {
+          "title": "CPU Usage per Pod",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+          "id": 1,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": { "fillOpacity": 15, "lineWidth": 2 }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            {
+              "expr": "process_cpu_usage{namespace=\"devops\"}",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "JVM Memory Used",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+          "id": 2,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": { "fillOpacity": 15, "lineWidth": 2 }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            {
+              "expr": "sum(jvm_memory_used_bytes{namespace=\"devops\"}) by (pod, area)",
+              "legendFormat": "{{pod}} — {{area}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "HTTP Request Rate per Pod",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+          "id": 3,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": { "fillOpacity": 15, "lineWidth": 2 }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"devops\"}[1m])) by (pod)",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "HTTP Request Duration p95 per Pod",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+          "id": 4,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": { "fillOpacity": 15, "lineWidth": 2 }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=\"devops\"}[5m])) by (le, pod))",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "HTTP Requests by Status Code",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+          "id": 5,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": { "fillOpacity": 15, "lineWidth": 2 }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"devops\"}[1m])) by (status, uri)",
+              "legendFormat": "{{status}} {{uri}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "JVM Threads",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+          "id": 6,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "fillOpacity": 15, "lineWidth": 2 }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            {
+              "expr": "jvm_threads_live_threads{namespace=\"devops\"}",
+              "legendFormat": "{{pod}} live",
+              "refId": "A"
+            },
+            {
+              "expr": "jvm_threads_daemon_threads{namespace=\"devops\"}",
+              "legendFormat": "{{pod}} daemon",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+          "id": 200,
+          "title": "Product Metrics",
+          "type": "row"
+        },
+        {
+          "title": "Employees in Database",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 26 },
+          "id": 7,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "steps": [
+                  { "color": "blue", "value": null },
+                  { "color": "green", "value": 10 },
+                  { "color": "yellow", "value": 100 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": { "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" },
+          "targets": [
+            {
+              "expr": "employees_total{namespace=\"devops\"}",
+              "legendFormat": "Employees",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Employees Created (total)",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 6, "x": 6, "y": 26 },
+          "id": 8,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": { "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" },
+          "targets": [
+            {
+              "expr": "employees_created_total{namespace=\"devops\"}",
+              "legendFormat": "Created",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Employees Updated (total)",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 6, "x": 12, "y": 26 },
+          "id": 9,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "steps": [
+                  { "color": "orange", "value": null }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": { "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" },
+          "targets": [
+            {
+              "expr": "employees_updated_total{namespace=\"devops\"}",
+              "legendFormat": "Updated",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Employees Deleted (total)",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 6, "x": 18, "y": 26 },
+          "id": 10,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": null }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": { "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" },
+          "targets": [
+            {
+              "expr": "employees_deleted_total{namespace=\"devops\"}",
+              "legendFormat": "Deleted",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Employee Operations Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+          "id": 11,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "fillOpacity": 15, "lineWidth": 2 }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            {
+              "expr": "rate(employees_created_total{namespace=\"devops\"}[1m])",
+              "legendFormat": "{{pod}} — create",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(employees_updated_total{namespace=\"devops\"}[1m])",
+              "legendFormat": "{{pod}} — update",
+              "refId": "B"
+            },
+            {
+              "expr": "rate(employees_deleted_total{namespace=\"devops\"}[1m])",
+              "legendFormat": "{{pod}} — delete",
+              "refId": "C"
+            }
+          ]
+        },
+        {
+          "title": "List Employees Request Rate per Pod",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+          "id": 12,
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": { "fillOpacity": 15, "lineWidth": 2 }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            {
+              "expr": "rate(employees_list_requests_total{namespace=\"devops\"}[1m])",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["devops", "backend"],
+      "templating": { "list": [] },
+      "time": { "from": "now-30m", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "DevOps Backend",
+      "uid": "devops-backend",
+      "version": 1
+    }

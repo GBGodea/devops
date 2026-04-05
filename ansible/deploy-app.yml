@@ -1,0 +1,50 @@
+---
+- name: Deploy application to Minikube
+  hosts: ubuntu
+  become: false
+
+  tasks:
+    - name: Start Minikube
+      ansible.builtin.command: minikube start --driver=docker --cpus=2 --memory=2048
+      register: minikube_start
+      changed_when: "'Starting' in minikube_start.stdout"
+
+    - name: Enable metrics-server addon
+      ansible.builtin.command: minikube addons enable metrics-server
+      register: metrics_addon
+      changed_when: "'was successfully enabled' in metrics_addon.stdout"
+
+    - name: Copy k8s manifests to VM
+      ansible.builtin.copy:
+        src: ../k8s/
+        dest: ~/k8s/
+        mode: "0644"
+
+    - name: Apply namespace
+      ansible.builtin.command: kubectl apply -f ~/k8s/namespace.yaml
+      register: ns_result
+      changed_when: "'created' in ns_result.stdout"
+
+    - name: Apply all manifests
+      ansible.builtin.command: kubectl apply -f ~/k8s/ -R
+      register: apply_result
+      changed_when: "'created' in apply_result.stdout"
+
+    - name: Show apply result
+      ansible.builtin.debug:
+        var: apply_result.stdout_lines
+
+    - name: Wait for backend to be ready
+      ansible.builtin.command: >
+        kubectl wait --for=condition=ready pod -l app=backend
+        -n devops --timeout=180s
+      changed_when: false
+
+    - name: Show all pods
+      ansible.builtin.command: kubectl get pods -n devops -o wide
+      register: pods_status
+      changed_when: false
+
+    - name: Show pods status
+      ansible.builtin.debug:
+        var: pods_status.stdout_lines

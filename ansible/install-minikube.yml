@@ -1,4 +1,5 @@
 ---
+<<<<<<< HEAD
 - name: Install Minikube on Ubuntu
   hosts: ubuntu
   become: true
@@ -63,17 +64,53 @@
     - name: Download kubectl binary
       ansible.builtin.get_url:
         url: "https://dl.k8s.io/release/{{ kubectl_stable.content | trim }}/bin/linux/{{ kubernetes_arch }}/kubectl"
+=======
+- name: Install Minikube and kubectl on Ubuntu
+  hosts: ubuntu
+  become: true
+
+  tasks:
+    - name: Install prerequisites
+      ansible.builtin.apt:
+        name:
+          - curl
+          - apt-transport-https
+          - conntrack
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Download kubectl
+      ansible.builtin.get_url:
+        url: https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl
+>>>>>>> 2097721dee8159c2c4fb915a7b34733cf152bb8e
         dest: /usr/local/bin/kubectl
         mode: "0755"
         force: true
 
+<<<<<<< HEAD
     - name: Download minikube binary
       ansible.builtin.get_url:
         url: "https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-{{ kubernetes_arch }}"
+=======
+    - name: Verify kubectl
+      ansible.builtin.command: kubectl version --client
+      register: kubectl_version
+      changed_when: false
+
+    - name: Show kubectl version
+      ansible.builtin.debug:
+        var: kubectl_version.stdout
+
+    - name: Download Minikube
+      ansible.builtin.get_url:
+        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+>>>>>>> 2097721dee8159c2c4fb915a7b34733cf152bb8e
         dest: /usr/local/bin/minikube
         mode: "0755"
         force: true
 
+<<<<<<< HEAD
     - name: Read target user account data
       ansible.builtin.getent:
         database: passwd
@@ -132,10 +169,14 @@
         - minikube_status.rc != 0 or 'Running' not in minikube_status.stdout
 
     - name: Check minikube version
+=======
+    - name: Verify Minikube
+>>>>>>> 2097721dee8159c2c4fb915a7b34733cf152bb8e
       ansible.builtin.command: minikube version
       register: minikube_version
       changed_when: false
 
+<<<<<<< HEAD
     - name: Show minikube version
       ansible.builtin.debug:
         var: minikube_version.stdout_lines
@@ -148,3 +189,8 @@
     - name: Show kubectl client version
       ansible.builtin.debug:
         var: kubectl_version.stdout_lines
+=======
+    - name: Show Minikube version
+      ansible.builtin.debug:
+        var: minikube_version.stdout
+>>>>>>> 2097721dee8159c2c4fb915a7b34733cf152bb8e

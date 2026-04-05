@@ -41,6 +41,7 @@ public class EmployeeController {
 
     @GetMapping("/employees")
     public List<Employee> getAllEmployees() {
+        employeeService.countEmployees();
         return repository.findAll();
     }
 
