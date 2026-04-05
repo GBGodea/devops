@@ -8,6 +8,7 @@ on:
 jobs:
   backend_build:
     name: Backend - Build
+    needs: backend_build_test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,6 +58,7 @@ jobs:
 
   frontend_build:
     name: Frontend - Build
+    needs: frontend_build_test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -80,6 +82,7 @@ jobs:
 
   frontend_build_test:
     name: Frontend - Build + Test
+    needs: backend_build
     runs-on: ubuntu-latest
     defaults:
       run:
