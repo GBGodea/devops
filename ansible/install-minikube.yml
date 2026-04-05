@@ -1,0 +1,47 @@
+---
+- name: Install Minikube and kubectl on Ubuntu
+  hosts: ubuntu
+  become: true
+
+  tasks:
+    - name: Install prerequisites
+      ansible.builtin.apt:
+        name:
+          - curl
+          - apt-transport-https
+          - conntrack
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Download kubectl
+      ansible.builtin.get_url:
+        url: https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl
+        dest: /usr/local/bin/kubectl
+        mode: "0755"
+        force: true
+
+    - name: Verify kubectl
+      ansible.builtin.command: kubectl version --client
+      register: kubectl_version
+      changed_when: false
+
+    - name: Show kubectl version
+      ansible.builtin.debug:
+        var: kubectl_version.stdout
+
+    - name: Download Minikube
+      ansible.builtin.get_url:
+        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        dest: /usr/local/bin/minikube
+        mode: "0755"
+        force: true
+
+    - name: Verify Minikube
+      ansible.builtin.command: minikube version
+      register: minikube_version
+      changed_when: false
+
+    - name: Show Minikube version
+      ansible.builtin.debug:
+        var: minikube_version.stdout
