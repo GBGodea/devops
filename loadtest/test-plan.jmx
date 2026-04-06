@@ -60,7 +60,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{"identificator":${__Random(100000,999999)},"name":"Load","surname":"Test","position":"Tester","salary":${__Random(1000,9999)}}</stringProp>
+                <stringProp name="Argument.value">{"identificator":${__Random(1,2000000000)},"name":"Load","surname":"Test","position":"Tester","salary":${__Random(1000,9999)}}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
