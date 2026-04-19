@@ -69,3 +69,70 @@ describe("apiClient", () => {
     expect(out).toBe(true);
   });
 });
+
+it("createEmployee throws detailed error on non-409 failure", async () => {
+  const fetchImpl = vi.fn(async () =>
+      mkRes({ ok: false, status: 500, text: async () => "db down" })
+  );
+
+  await expect(createEmployee({ identificator: 1 }, fetchImpl)).rejects.toThrow(
+      "createEmployee failed: 500 db down"
+  );
+});
+
+it("createEmployee returns empty string when response text read fails", async () => {
+  const fetchImpl = vi.fn(async () =>
+      mkRes({
+        ok: true,
+        status: 201,
+        text: async () => {
+          throw new Error("broken stream");
+        },
+      })
+  );
+
+  const out = await createEmployee({ identificator: 1 }, fetchImpl);
+  expect(out).toBe("");
+});
+
+it("updateEmployee returns response text on success", async () => {
+  const payload = { identificator: 1 };
+  const fetchImpl = vi.fn(async (url, init) => {
+    expect(url).toMatch(/\/api\/employees\/42$/);
+    expect(init.method).toBe("PUT");
+    expect(init.headers).toEqual({ "Content-Type": "application/json" });
+    expect(init.body).toBe(JSON.stringify(payload));
+    return mkRes({ ok: true, status: 200, text: async () => "updated" });
+  });
+
+  const out = await updateEmployee(42, payload, fetchImpl);
+  expect(out).toBe("updated");
+});
+
+it("updateEmployee throws detailed error on non-404 failure", async () => {
+  const fetchImpl = vi.fn(async () =>
+      mkRes({ ok: false, status: 500, text: async () => "server error" })
+  );
+
+  await expect(updateEmployee(42, { identificator: 1 }, fetchImpl)).rejects.toThrow(
+      "updateEmployee failed: 500 server error"
+  );
+});
+
+it("deleteEmployee throws not_found on 404", async () => {
+  const fetchImpl = vi.fn(async () =>
+      mkRes({ ok: false, status: 404, text: async () => "" })
+  );
+
+  await expect(deleteEmployee(123, fetchImpl)).rejects.toThrow("not_found");
+});
+
+it("deleteEmployee throws detailed error on non-404 failure", async () => {
+  const fetchImpl = vi.fn(async () =>
+      mkRes({ ok: false, status: 500, text: async () => "cannot delete" })
+  );
+
+  await expect(deleteEmployee(123, fetchImpl)).rejects.toThrow(
+      "deleteEmployee failed: 500 cannot delete"
+  );
+});
