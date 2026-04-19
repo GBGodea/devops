@@ -4,10 +4,9 @@ metadata:
   name: prometheus
   namespace: devops
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: prometheus
   ports:
     - port: 9090
       targetPort: 9090
-      nodePort: 30090
