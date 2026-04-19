@@ -11,6 +11,12 @@ export default defineConfig({
       reportsDirectory: './coverage',
       include: ['src/**/*.{js,jsx}'],
       exclude: ['src/**/*.test.{js,jsx}', 'src/main.jsx'],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        statements: 80,
+        branches: 80,
+      },
     },
   },
 })

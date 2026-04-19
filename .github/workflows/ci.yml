@@ -53,8 +53,8 @@ jobs:
       - name: Build
         run: ./gradlew bootJar -x test --no-daemon
 
-      - name: Test
-        run: ./gradlew test --no-daemon
+      - name: Test + Coverage 80%
+        run: ./gradlew clean test jacocoTestReport jacocoTestCoverageVerification --no-daemon
 
   frontend_build:
     name: Frontend - Build
@@ -104,8 +104,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Test
-        run: npm run test
+      - name: Test + Coverage 80%
+        run: npm run test:coverage
 
   sonar_backend:
     name: Sonar - Backend
@@ -132,7 +132,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Test with coverage
-        run: ./gradlew test jacocoTestReport --no-daemon
+        run: ./gradlew clean test jacocoTestReport jacocoTestCoverageVerification --no-daemon
 
       - name: Sonar scan
         env:
@@ -166,7 +166,7 @@ jobs:
         run: npm run test:coverage
 
       - name: Sonar scan
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v7
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
