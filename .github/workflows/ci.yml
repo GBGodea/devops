@@ -107,10 +107,83 @@ jobs:
       - name: Test
         run: npm run test
 
+  sonar_backend:
+    name: Sonar - Backend
+    needs: backend_build_test
+    if: ${{ vars.SONAR_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Ensure gradlew is executable
+        run: chmod +x gradlew
+
+      - name: Test with coverage
+        run: ./gradlew test jacocoTestReport --no-daemon
+
+      - name: Sonar scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew sonar -Dsonar.qualitygate.wait=true --no-daemon
+
+  sonar_frontend:
+    name: Sonar - Frontend
+    needs: frontend_build_test
+    if: ${{ vars.SONAR_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: front/my-react-app/package-lock.json
+
+      - name: Install
+        working-directory: front/my-react-app
+        run: npm ci
+
+      - name: Test with coverage
+        working-directory: front/my-react-app
+        run: npm run test:coverage
+
+      - name: Sonar scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: front/my-react-app
+          args: >
+            -Dsonar.qualitygate.wait=true
+
   docker_push:
     name: Push Docker Images
-    needs: frontend_build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [frontend_build, sonar_backend, sonar_frontend]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.frontend_build.result == 'success' &&
+      (needs.sonar_backend.result == 'success' || needs.sonar_backend.result == 'skipped') &&
+      (needs.sonar_frontend.result == 'success' || needs.sonar_frontend.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
