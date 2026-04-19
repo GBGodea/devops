@@ -57,8 +57,8 @@ jacocoTestReport {
 
 sonar {
 	properties {
-		property "sonar.projectKey", "godofbros1_godea"
-		property "sonar.organization", "godofbros1"
+		property "sonar.projectKey", "gbgodea_devops-backend"
+		property "sonar.organization", "gbgodea"
 		property "sonar.host.url", "https://sonarcloud.io"
 		property "sonar.coverage.jacoco.xmlReportPaths",
 				 "build/reports/jacoco/test/jacocoTestReport.xml"
