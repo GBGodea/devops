@@ -4,9 +4,10 @@ metadata:
   name: frontend
   namespace: devops
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: frontend
   ports:
     - port: 80
       targetPort: 80
+      nodePort: 32031
