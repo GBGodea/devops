@@ -4,9 +4,10 @@ metadata:
   name: grafana
   namespace: devops
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: grafana
   ports:
     - port: 3000
       targetPort: 3000
+      nodePort: 32030
