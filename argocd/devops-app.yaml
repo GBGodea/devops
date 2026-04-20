@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/GBGodea/devops.git
     targetRevision: main
-    path: k8s/dev
+    path: k8s
   destination:
     server: https://kubernetes.default.svc
     namespace: devops
