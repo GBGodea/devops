@@ -210,3 +210,101 @@ jobs:
           file: ./front/my-react-app/Dockerfile
           push: true
           tags: godofbros1/devops-frontend:latest
+
+  notify:
+    name: Telegram Notification
+    needs:
+      - backend_build
+      - backend_build_test
+      - frontend_build
+      - frontend_build_test
+      - sonar_backend
+      - sonar_frontend
+      - docker_push
+    if: ${{ always() && vars.TELEGRAM_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build status message
+        id: status
+        run: |
+          emoji() {
+            case "$1" in
+              success)  echo "✅" ;;
+              failure)  echo "❌" ;;
+              cancelled) echo "⚠️" ;;
+              skipped)  echo "⏭️" ;;
+              *)        echo "❔" ;;
+            esac
+          }
+
+          overall="success"
+          for r in "${{ needs.backend_build.result }}" \
+                   "${{ needs.backend_build_test.result }}" \
+                   "${{ needs.frontend_build.result }}" \
+                   "${{ needs.frontend_build_test.result }}" \
+                   "${{ needs.sonar_backend.result }}" \
+                   "${{ needs.sonar_frontend.result }}" \
+                   "${{ needs.docker_push.result }}"; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              overall="failure"
+              break
+            fi
+          done
+
+          overall_emoji=$(emoji "$overall")
+
+          {
+            echo "message<<EOF"
+            echo "${overall_emoji} CI pipeline: *${overall}*"
+            echo ""
+            echo "Repo: \`${{ github.repository }}\`"
+            echo "Branch: \`${{ github.ref_name }}\`"
+            echo "Commit: \`${{ github.sha }}\`"
+            echo "By: ${{ github.actor }}"
+            echo ""
+            echo "Jobs:"
+            echo "$(emoji ${{ needs.backend_build.result }}) Backend - Build"
+            echo "$(emoji ${{ needs.backend_build_test.result }}) Backend - Build + Test"
+            echo "$(emoji ${{ needs.frontend_build.result }}) Frontend - Build"
+            echo "$(emoji ${{ needs.frontend_build_test.result }}) Frontend - Build + Test"
+            echo "$(emoji ${{ needs.sonar_backend.result }}) Sonar - Backend"
+            echo "$(emoji ${{ needs.sonar_frontend.result }}) Sonar - Frontend"
+            echo "$(emoji ${{ needs.docker_push.result }}) Push Docker Images"
+            echo ""
+            echo "[Run details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Send Telegram messages
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
+          MESSAGE: ${{ steps.status.outputs.message }}
+        run: |
+          if [ -z "$TELEGRAM_CHAT_IDS" ]; then
+            echo "TELEGRAM_CHAT_IDS is empty — skipping"
+            exit 0
+          fi
+
+          IFS=',' read -ra CHATS <<< "$TELEGRAM_CHAT_IDS"
+          for raw_chat in "${CHATS[@]}"; do
+            chat="$(echo "$raw_chat" | xargs)"
+            [ -z "$chat" ] && continue
+
+            echo ">>> Sending to chat: $chat"
+            response=$(curl -s -w "\n%{http_code}" \
+              -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              --data-urlencode "chat_id=${chat}" \
+              --data-urlencode "parse_mode=Markdown" \
+              --data-urlencode "disable_web_page_preview=true" \
+              --data-urlencode "text=${MESSAGE}")
+
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+
+            if [ "$http_code" != "200" ]; then
+              echo "FAILED for $chat (HTTP $http_code): $body"
+            else
+              echo "OK"
+            fi
+          done
