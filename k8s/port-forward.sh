@@ -22,6 +22,9 @@ echo "  Prometheus: http://0.0.0.0:9090"
 kubectl port-forward svc/backend 8082:8080 -n devops --address 0.0.0.0 &
 echo "  Backend:    http://0.0.0.0:8082"
 
+kubectl port-forward svc/sonarqube 9000:9000 -n sonarqube --address 0.0.0.0 &
+echo "  SonarQube:  http://0.0.0.0:9000  (admin/admin при первом входе)"
+
 echo ""
 echo "Все порты проброшены. Ctrl+C чтобы остановить."
 wait
