@@ -223,7 +223,9 @@ jobs:
           context: ./api
           file: ./api/Dockerfile
           push: true
-          tags: godofbros1/devops-backend:latest
+          tags: |
+            godofbros1/devops-backend:latest
+            godofbros1/devops-backend:${{ github.sha }}
 
       - name: Build and push frontend
         uses: docker/build-push-action@v6
@@ -231,7 +233,78 @@ jobs:
           context: ./front/my-react-app
           file: ./front/my-react-app/Dockerfile
           push: true
-          tags: godofbros1/devops-frontend:latest
+          tags: |
+            godofbros1/devops-frontend:latest
+            godofbros1/devops-frontend:${{ github.sha }}
+
+  argocd_deploy:
+    name: Argo CD - Deploy
+    needs: docker_push
+    if: ${{ needs.docker_push.result == 'success' && vars.ARGOCD_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      deploy_revision: ${{ steps.manifests.outputs.deploy_revision }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Update Kubernetes image tags
+        id: manifests
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          sed -i "s|image: godofbros1/devops-backend:.*|image: godofbros1/devops-backend:${IMAGE_TAG}|" k8s/backend-deployment.yaml
+          sed -i "s|image: godofbros1/devops-frontend:.*|image: godofbros1/devops-frontend:${IMAGE_TAG}|" k8s/frontend-deployment.yaml
+
+          if git diff --quiet -- k8s/backend-deployment.yaml k8s/frontend-deployment.yaml; then
+            echo "deploy_revision=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "No Kubernetes manifest changes"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add k8s/backend-deployment.yaml k8s/frontend-deployment.yaml
+          git commit -m "chore: deploy ${GITHUB_SHA::7} [skip ci]"
+          git push origin HEAD:${GITHUB_REF_NAME}
+          echo "deploy_revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Connect to Tailscale
+        if: ${{ vars.ARGOCD_TAILSCALE_ENABLED == 'true' }}
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:devops
+
+      - name: Install Argo CD CLI
+        run: |
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 555 argocd /usr/local/bin/argocd
+          argocd version --client
+
+      - name: Sync Argo CD application
+        env:
+          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+          ARGOCD_APP_NAME: ${{ vars.ARGOCD_APP_NAME || 'devops-app' }}
+          ARGOCD_WAIT_TIMEOUT: ${{ vars.ARGOCD_WAIT_TIMEOUT || '300' }}
+          ARGOCD_OPTS: ${{ vars.ARGOCD_OPTS }}
+          DEPLOY_REVISION: ${{ steps.manifests.outputs.deploy_revision }}
+        run: |
+          set -euo pipefail
+
+          : "${ARGOCD_SERVER:?Set ARGOCD_SERVER repository secret}"
+          : "${ARGOCD_AUTH_TOKEN:?Set ARGOCD_AUTH_TOKEN repository secret}"
+
+          argocd app sync "$ARGOCD_APP_NAME" --revision "$DEPLOY_REVISION"
+          argocd app wait "$ARGOCD_APP_NAME" --health --sync --timeout "$ARGOCD_WAIT_TIMEOUT"
 
   notify:
     name: Telegram Notification
@@ -243,6 +316,7 @@ jobs:
       - sonar_backend
       - sonar_frontend
       - docker_push
+      - argocd_deploy
     if: ${{ always() && vars.TELEGRAM_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -266,7 +340,8 @@ jobs:
                    "${{ needs.frontend_test.result }}" \
                    "${{ needs.sonar_backend.result }}" \
                    "${{ needs.sonar_frontend.result }}" \
-                   "${{ needs.docker_push.result }}"; do
+                   "${{ needs.docker_push.result }}" \
+                   "${{ needs.argocd_deploy.result }}"; do
             if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
               overall="failure"
               break
@@ -292,6 +367,7 @@ jobs:
             echo "$(emoji ${{ needs.sonar_backend.result }}) Sonar - Backend"
             echo "$(emoji ${{ needs.sonar_frontend.result }}) Sonar - Frontend"
             echo "$(emoji ${{ needs.docker_push.result }}) Push Docker Images"
+            echo "$(emoji ${{ needs.argocd_deploy.result }}) Argo CD - Deploy"
             echo ""
             echo "[Run details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
             echo "EOF"
