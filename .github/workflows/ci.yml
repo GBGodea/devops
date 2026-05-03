@@ -139,10 +139,14 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_SCANNER_OPTS: "-Dsonar.scanner.connectTimeout=120 -Dsonar.scanner.socketTimeout=900 -Dsonar.scanner.responseTimeout=900"
         run: |
           ./gradlew sonar \
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.qualitygate.wait=true \
+            -Dsonar.scanner.connectTimeout=120 \
+            -Dsonar.scanner.socketTimeout=900 \
+            -Dsonar.scanner.responseTimeout=900 \
             --no-daemon
 
   sonar_frontend:
@@ -183,10 +187,14 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_SCANNER_OPTS: "-Dsonar.scanner.connectTimeout=120 -Dsonar.scanner.socketTimeout=900 -Dsonar.scanner.responseTimeout=900"
         with:
           projectBaseDir: front/my-react-app
           args: >
             -Dsonar.qualitygate.wait=true
+            -Dsonar.scanner.connectTimeout=120
+            -Dsonar.scanner.socketTimeout=900
+            -Dsonar.scanner.responseTimeout=900
 
   docker_push:
     name: Push Docker Images
