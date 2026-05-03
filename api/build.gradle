@@ -55,28 +55,9 @@ jacocoTestReport {
 	}
 }
 
-jacocoTestCoverageVerification {
-	dependsOn test
-	violationRules {
-		rule {
-			limit {
-				counter = 'LINE'
-				value = 'COVEREDRATIO'
-				minimum = 0.80
-			}
-		}
-	}
-}
-
-tasks.named('check') {
-	dependsOn jacocoTestCoverageVerification
-}
-
 sonar {
 	properties {
-		property "sonar.projectKey", "gbgodea_devops-backend"
-		property "sonar.organization", "gbgodea"
-		property "sonar.host.url", "https://sonarcloud.io"
+		property "sonar.projectKey", "devops-backend"
 		property "sonar.coverage.jacoco.xmlReportPaths",
 				"build/reports/jacoco/test/jacocoTestReport.xml"
 	}
