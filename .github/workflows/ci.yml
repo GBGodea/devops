@@ -8,7 +8,6 @@ on:
 jobs:
   backend_build:
     name: Backend - Build
-    needs: backend_build_test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -30,62 +29,36 @@ jobs:
       - name: Build
         run: ./gradlew bootJar -x test --no-daemon
 
-  backend_build_test:
-    name: Backend - Build + Test
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: api
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: gradle
-
-      - name: Ensure gradlew is executable
-        run: chmod +x gradlew
-
-      - name: Build
-        run: ./gradlew bootJar -x test --no-daemon
-
-      - name: Test + Coverage 80%
-        run: ./gradlew clean test jacocoTestReport jacocoTestCoverageVerification --no-daemon
-
-  frontend_build:
-    name: Frontend - Build
-    needs: frontend_build_test
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: front/my-react-app
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: front/my-react-app/package-lock.json
-
-      - name: Install
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-  frontend_build_test:
-    name: Frontend - Build + Test
+  backend_test:
+    name: Backend - Test
     needs: backend_build
     runs-on: ubuntu-latest
     defaults:
       run:
+        working-directory: api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Ensure gradlew is executable
+        run: chmod +x gradlew
+
+      - name: Test + Coverage 80%
+        run: ./gradlew test jacocoTestReport jacocoTestCoverageVerification --no-daemon
+
+  frontend_build:
+    name: Frontend - Build
+    needs: backend_test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
         working-directory: front/my-react-app
     steps:
       - name: Checkout
@@ -103,13 +76,34 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  frontend_test:
+    name: Frontend - Test
+    needs: frontend_build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front/my-react-app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: front/my-react-app/package-lock.json
+
+      - name: Install
+        run: npm ci
 
       - name: Test + Coverage 80%
         run: npm run test:coverage
 
   sonar_backend:
     name: Sonar - Backend
-    needs: backend_build_test
+    needs: backend_test
     if: ${{ vars.SONAR_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     defaults:
@@ -141,7 +135,7 @@ jobs:
 
   sonar_frontend:
     name: Sonar - Frontend
-    needs: frontend_build_test
+    needs: frontend_test
     if: ${{ vars.SONAR_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -176,12 +170,12 @@ jobs:
 
   docker_push:
     name: Push Docker Images
-    needs: [frontend_build, sonar_backend, sonar_frontend]
+    needs: [frontend_test, sonar_backend, sonar_frontend]
     if: |
       always() &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      needs.frontend_build.result == 'success' &&
+      needs.frontend_test.result == 'success' &&
       (needs.sonar_backend.result == 'success' || needs.sonar_backend.result == 'skipped') &&
       (needs.sonar_frontend.result == 'success' || needs.sonar_frontend.result == 'skipped')
     runs-on: ubuntu-latest
@@ -215,9 +209,9 @@ jobs:
     name: Telegram Notification
     needs:
       - backend_build
-      - backend_build_test
+      - backend_test
       - frontend_build
-      - frontend_build_test
+      - frontend_test
       - sonar_backend
       - sonar_frontend
       - docker_push
@@ -239,9 +233,9 @@ jobs:
 
           overall="success"
           for r in "${{ needs.backend_build.result }}" \
-                   "${{ needs.backend_build_test.result }}" \
+                   "${{ needs.backend_test.result }}" \
                    "${{ needs.frontend_build.result }}" \
-                   "${{ needs.frontend_build_test.result }}" \
+                   "${{ needs.frontend_test.result }}" \
                    "${{ needs.sonar_backend.result }}" \
                    "${{ needs.sonar_frontend.result }}" \
                    "${{ needs.docker_push.result }}"; do
@@ -264,9 +258,9 @@ jobs:
             echo ""
             echo "Jobs:"
             echo "$(emoji ${{ needs.backend_build.result }}) Backend - Build"
-            echo "$(emoji ${{ needs.backend_build_test.result }}) Backend - Build + Test"
+            echo "$(emoji ${{ needs.backend_test.result }}) Backend - Test"
             echo "$(emoji ${{ needs.frontend_build.result }}) Frontend - Build"
-            echo "$(emoji ${{ needs.frontend_build_test.result }}) Frontend - Build + Test"
+            echo "$(emoji ${{ needs.frontend_test.result }}) Frontend - Test"
             echo "$(emoji ${{ needs.sonar_backend.result }}) Sonar - Backend"
             echo "$(emoji ${{ needs.sonar_frontend.result }}) Sonar - Frontend"
             echo "$(emoji ${{ needs.docker_push.result }}) Push Docker Images"
