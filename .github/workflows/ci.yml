@@ -296,7 +296,6 @@ jobs:
           ARGOCD_APP_NAME: ${{ vars.ARGOCD_APP_NAME || 'devops-app' }}
           ARGOCD_WAIT_TIMEOUT: ${{ vars.ARGOCD_WAIT_TIMEOUT || '300' }}
           ARGOCD_OPTS: ${{ vars.ARGOCD_OPTS }}
-          DEPLOY_REVISION: ${{ steps.manifests.outputs.deploy_revision }}
         run: |
           set -euo pipefail
 
@@ -308,7 +307,7 @@ jobs:
             read -r -a ARGOCD_ARGS <<< "$ARGOCD_OPTS"
           fi
 
-          argocd "${ARGOCD_ARGS[@]}" app sync "$ARGOCD_APP_NAME" --revision "$DEPLOY_REVISION"
+          argocd "${ARGOCD_ARGS[@]}" app get "$ARGOCD_APP_NAME" --refresh
           argocd "${ARGOCD_ARGS[@]}" app wait "$ARGOCD_APP_NAME" --health --sync --timeout "$ARGOCD_WAIT_TIMEOUT"
 
   notify:
