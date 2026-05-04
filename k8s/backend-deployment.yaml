@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: godofbros1/devops-backend:latest
+          image: godofbros1/devops-backend:0dfd8a66f11c439093b4c3ae6cb69c7a321e10b9
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
