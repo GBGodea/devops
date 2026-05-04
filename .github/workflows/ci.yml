@@ -285,8 +285,8 @@ jobs:
 
       - name: Install Argo CD CLI
         run: |
-          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-          sudo install -m 555 argocd /usr/local/bin/argocd
+          curl -sSL -o /tmp/argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 555 /tmp/argocd-linux-amd64 /usr/local/bin/argocd
           argocd version --client
 
       - name: Sync Argo CD application
@@ -303,8 +303,13 @@ jobs:
           : "${ARGOCD_SERVER:?Set ARGOCD_SERVER repository secret}"
           : "${ARGOCD_AUTH_TOKEN:?Set ARGOCD_AUTH_TOKEN repository secret}"
 
-          argocd app sync "$ARGOCD_APP_NAME" --revision "$DEPLOY_REVISION"
-          argocd app wait "$ARGOCD_APP_NAME" --health --sync --timeout "$ARGOCD_WAIT_TIMEOUT"
+          ARGOCD_ARGS=()
+          if [ -n "${ARGOCD_OPTS:-}" ]; then
+            read -r -a ARGOCD_ARGS <<< "$ARGOCD_OPTS"
+          fi
+
+          argocd "${ARGOCD_ARGS[@]}" app sync "$ARGOCD_APP_NAME" --revision "$DEPLOY_REVISION"
+          argocd "${ARGOCD_ARGS[@]}" app wait "$ARGOCD_APP_NAME" --health --sync --timeout "$ARGOCD_WAIT_TIMEOUT"
 
   notify:
     name: Telegram Notification
