@@ -6,32 +6,8 @@ on:
   pull_request:
 
 jobs:
-  backend_build:
-    name: Backend - Build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: api
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: gradle
-
-      - name: Ensure gradlew is executable
-        run: chmod +x gradlew
-
-      - name: Build
-        run: ./gradlew bootJar -x test --no-daemon
-
   backend_test:
     name: Backend - Test
-    needs: backend_build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -52,54 +28,6 @@ jobs:
 
       - name: Test + Coverage
         run: ./gradlew test jacocoTestReport --no-daemon
-
-  frontend_build:
-    name: Frontend - Build
-    needs: backend_test
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: front/my-react-app
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: front/my-react-app/package-lock.json
-
-      - name: Install
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-  frontend_test:
-    name: Frontend - Test
-    needs: frontend_build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: front/my-react-app
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: front/my-react-app/package-lock.json
-
-      - name: Install
-        run: npm ci
-
-      - name: Test + Coverage
-        run: npm run test:coverage
 
   sonar_backend:
     name: Sonar - Backend
@@ -149,6 +77,58 @@ jobs:
             -Dsonar.scanner.responseTimeout=900 \
             --no-daemon
 
+  backend_build:
+    name: Backend - Build
+    needs: [backend_test, sonar_backend]
+    if: |
+      always() &&
+      needs.backend_test.result == 'success' &&
+      (needs.sonar_backend.result == 'success' || needs.sonar_backend.result == 'skipped')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Ensure gradlew is executable
+        run: chmod +x gradlew
+
+      - name: Build
+        run: ./gradlew bootJar -x test --no-daemon
+
+  frontend_test:
+    name: Frontend - Test
+    needs: backend_build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front/my-react-app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: front/my-react-app/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Test + Coverage
+        run: npm run test:coverage
+
   sonar_frontend:
     name: Sonar - Frontend
     needs: frontend_test
@@ -196,16 +176,38 @@ jobs:
             -Dsonar.scanner.socketTimeout=900
             -Dsonar.scanner.responseTimeout=900
 
-  docker_push:
-    name: Push Docker Images
-    needs: [frontend_test, sonar_backend, sonar_frontend]
+  frontend_build:
+    name: Frontend - Build
+    needs: [frontend_test, sonar_frontend]
     if: |
       always() &&
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'push' &&
       needs.frontend_test.result == 'success' &&
-      (needs.sonar_backend.result == 'success' || needs.sonar_backend.result == 'skipped') &&
       (needs.sonar_frontend.result == 'success' || needs.sonar_frontend.result == 'skipped')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front/my-react-app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: front/my-react-app/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  docker_push:
+    name: Push Docker Images
+    needs: frontend_build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
