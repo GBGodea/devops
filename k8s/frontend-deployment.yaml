@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: godofbros1/devops-frontend:latest
+          image: godofbros1/devops-frontend:d2593de33c69d5d0fbaccdab150e937b0340922e
           imagePullPolicy: Always
           ports:
             - containerPort: 80
