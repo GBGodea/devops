@@ -32,7 +32,7 @@ function renderModal(options) {
   return (
     <div style={styles.modalLayer}>
       <button type="button" style={styles.backdrop} onClick={onClose} aria-label="Close modal" />
-      <section style={styles.modal} role="dialog" aria-modal="true" aria-labelledby="employee-edit-title">
+      <dialog open style={styles.modal} aria-labelledby="employee-edit-title">
         <div style={styles.modalHeader}>
           <div id="employee-edit-title" style={styles.modalTitle}>{title}</div>
           <button style={styles.iconButton} onClick={onClose} aria-label="Close">
@@ -40,7 +40,7 @@ function renderModal(options) {
           </button>
         </div>
         <div style={styles.modalBody}>{children}</div>
-      </section>
+      </dialog>
     </div>
   );
 }
@@ -651,9 +651,12 @@ const styles = {
     position: "relative",
     zIndex: 1,
     width: "min(780px, 100%)",
+    margin: 0,
+    padding: 0,
     borderRadius: 22,
     border: "1px solid rgba(255,255,255,0.14)",
     background: "rgba(12, 18, 34, 0.98)",
+    color: "#e9eef8",
     boxShadow: "0 40px 120px rgba(0,0,0,0.70)",
     overflow: "hidden",
     animation: "pop 180ms ease-out",
@@ -715,7 +718,7 @@ const css = `
 `;
 
 (function injectCssOnce() {
-  if (typeof globalThis.document === "undefined") return;
+  if (globalThis.document === undefined) return;
   if (globalThis.document.getElementById("__ui_css")) return;
   const s = globalThis.document.createElement("style");
   s.id = "__ui_css";
