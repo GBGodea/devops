@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { normalizePayload } from "./lib/employeePayload.js";
 import { sortEmployeesByIdentificator } from "./lib/sortEmployees.js";
 import {
@@ -7,8 +7,6 @@ import {
   fetchEmployees as apiFetchEmployees,
   updateEmployee as apiUpdateEmployee,
 } from "./lib/apiClient.js";
-
-const API = "http://localhost:8081/api";
 
 const empty = {
   identificator: "",
@@ -19,19 +17,30 @@ const empty = {
   salary: "",
 };
 
-function Modal({ open, title, children, onClose }) {
+const skeletonCellKeys = ["id", "name", "surname", "patronymic", "position", "salary", "actions"];
+const skeletonRowKeys = ["row-1", "row-2", "row-3", "row-4", "row-5"];
+
+function createChangeHandler(setter) {
+  return (event) => setter((previous) => ({ ...previous, [event.target.name]: event.target.value }));
+}
+
+function renderModal(options) {
+  const { open, title, children, onClose } = options;
+
   if (!open) return null;
+
   return (
-    <div style={styles.backdrop} onMouseDown={onClose}>
-      <div style={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
+    <div style={styles.modalLayer}>
+      <button type="button" style={styles.backdrop} onClick={onClose} aria-label="Close modal" />
+      <section style={styles.modal} role="dialog" aria-modal="true" aria-labelledby="employee-edit-title">
         <div style={styles.modalHeader}>
-          <div style={styles.modalTitle}>{title}</div>
+          <div id="employee-edit-title" style={styles.modalTitle}>{title}</div>
           <button style={styles.iconButton} onClick={onClose} aria-label="Close">
             ✕
           </button>
         </div>
         <div style={styles.modalBody}>{children}</div>
-      </div>
+      </section>
     </div>
   );
 }
@@ -39,8 +48,8 @@ function Modal({ open, title, children, onClose }) {
 function SkeletonRow() {
   return (
     <tr>
-      {Array.from({ length: 7 }).map((_, i) => (
-        <td key={i} style={styles.td}>
+      {skeletonCellKeys.map((key) => (
+        <td key={key} style={styles.td}>
           <div style={styles.skel} />
         </td>
       ))}
@@ -51,28 +60,23 @@ function SkeletonRow() {
 export default function App() {
   const [employees, setEmployees] = useState([]);
   const [createForm, setCreateForm] = useState(empty);
-
-  const [editing, setEditing] = useState(null); // employee object
+  const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState(empty);
-
-  const [toast, setToast] = useState(null); // {type, text}
+  const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(false);
+  const toastTimeoutId = useRef(null);
 
   const sorted = useMemo(() => {
     return sortEmployeesByIdentificator(employees);
   }, [employees]);
 
-  function showToast(type, text) {
+  const showToast = useCallback((type, text) => {
     setToast({ type, text });
-    window.clearTimeout(showToast._t);
-    showToast._t = window.setTimeout(() => setToast(null), 3200);
-  }
+    globalThis.clearTimeout(toastTimeoutId.current);
+    toastTimeoutId.current = globalThis.setTimeout(() => setToast(null), 3200);
+  }, []);
 
-  function onChange(setter) {
-    return (e) => setter((p) => ({ ...p, [e.target.name]: e.target.value }));
-  }
-
-  async function loadEmployees() {
+  const loadEmployees = useCallback(async () => {
     setLoading(true);
     try {
       const data = await apiFetchEmployees();
@@ -88,10 +92,14 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [showToast]);
 
   useEffect(() => {
     loadEmployees();
+  }, [loadEmployees]);
+
+  useEffect(() => {
+    return () => globalThis.clearTimeout(toastTimeoutId.current);
   }, []);
 
   async function createEmployee(e) {
@@ -149,7 +157,7 @@ export default function App() {
   }
 
   async function removeEmployee(emp) {
-    const ok = window.confirm(`Удалить сотрудника #${emp.identificator} (${emp.name} ${emp.surname})?`);
+    const ok = globalThis.confirm(`Удалить сотрудника #${emp.identificator} (${emp.name} ${emp.surname})?`);
     if (!ok) return;
 
     try {
@@ -167,9 +175,40 @@ export default function App() {
     }
   }
 
+  let tableRows;
+  if (loading) {
+    tableRows = skeletonRowKeys.map((key) => <SkeletonRow key={key} />);
+  } else if (sorted.length === 0) {
+    tableRows = (
+      <tr>
+        <td colSpan={7} style={{ ...styles.td, padding: 18, opacity: 0.7 }}>
+          Пока пусто. Добавь сотрудника слева 🙂
+        </td>
+      </tr>
+    );
+  } else {
+    tableRows = sorted.map((emp) => (
+      <tr key={emp.id} style={styles.tr}>
+        <td style={styles.tdMono}>{emp.identificator}</td>
+        <td style={styles.td}>{emp.name}</td>
+        <td style={styles.td}>{emp.surname}</td>
+        <td style={styles.td}>{emp.patronymic ?? ""}</td>
+        <td style={styles.td}>{emp.position}</td>
+        <td style={styles.tdMono}>{emp.salary}</td>
+        <td style={{ ...styles.td, textAlign: "right" }}>
+          <button type="button" style={styles.iconBtn} onClick={() => openEdit(emp)} title="Edit" aria-label={`Edit employee ${emp.identificator}`}>
+            ✏️
+          </button>
+          <button type="button" style={{ ...styles.iconBtn, ...styles.dangerIconBtn }} onClick={() => removeEmployee(emp)} title="Delete" aria-label={`Delete employee ${emp.identificator}`}>
+            🗑️
+          </button>
+        </td>
+      </tr>
+    ));
+  }
+
   return (
     <div style={styles.page}>
-      {/* мягкая динамика фона */}
       <div style={styles.blob1} />
       <div style={styles.blob2} />
       <div style={styles.blob3} />
@@ -191,42 +230,41 @@ export default function App() {
         )}
 
         <main style={styles.main}>
-          {/* Левая колонка */}
           <section style={{ ...styles.card, ...styles.cardLift }}>
             <div style={styles.cardTitle}>Добавить сотрудника</div>
 
             <form onSubmit={createEmployee} style={styles.form}>
               <div style={styles.field}>
-                <label style={styles.label}>identificator</label>
-                <input style={styles.input} name="identificator" value={createForm.identificator} onChange={onChange(setCreateForm)} required />
+                <label htmlFor="create-identificator" style={styles.label}>identificator</label>
+                <input id="create-identificator" style={styles.input} name="identificator" value={createForm.identificator} onChange={createChangeHandler(setCreateForm)} required />
               </div>
 
               <div style={styles.row2}>
                 <div style={styles.field}>
-                  <label style={styles.label}>name</label>
-                  <input style={styles.input} name="name" value={createForm.name} onChange={onChange(setCreateForm)} required />
+                  <label htmlFor="create-name" style={styles.label}>name</label>
+                  <input id="create-name" style={styles.input} name="name" value={createForm.name} onChange={createChangeHandler(setCreateForm)} required />
                 </div>
                 <div style={styles.field}>
-                  <label style={styles.label}>surname</label>
-                  <input style={styles.input} name="surname" value={createForm.surname} onChange={onChange(setCreateForm)} required />
-                </div>
-              </div>
-
-              <div style={styles.row2}>
-                <div style={styles.field}>
-                  <label style={styles.label}>patronymic</label>
-                  <input style={styles.input} name="patronymic" value={createForm.patronymic} onChange={onChange(setCreateForm)} />
-                </div>
-                <div style={styles.field}>
-                  <label style={styles.label}>position</label>
-                  <input style={styles.input} name="position" value={createForm.position} onChange={onChange(setCreateForm)} required />
+                  <label htmlFor="create-surname" style={styles.label}>surname</label>
+                  <input id="create-surname" style={styles.input} name="surname" value={createForm.surname} onChange={createChangeHandler(setCreateForm)} required />
                 </div>
               </div>
 
               <div style={styles.row2}>
                 <div style={styles.field}>
-                  <label style={styles.label}>salary</label>
-                  <input style={styles.input} name="salary" value={createForm.salary} onChange={onChange(setCreateForm)} required />
+                  <label htmlFor="create-patronymic" style={styles.label}>patronymic</label>
+                  <input id="create-patronymic" style={styles.input} name="patronymic" value={createForm.patronymic} onChange={createChangeHandler(setCreateForm)} />
+                </div>
+                <div style={styles.field}>
+                  <label htmlFor="create-position" style={styles.label}>position</label>
+                  <input id="create-position" style={styles.input} name="position" value={createForm.position} onChange={createChangeHandler(setCreateForm)} required />
+                </div>
+              </div>
+
+              <div style={styles.row2}>
+                <div style={styles.field}>
+                  <label htmlFor="create-salary" style={styles.label}>salary</label>
+                  <input id="create-salary" style={styles.input} name="salary" value={createForm.salary} onChange={createChangeHandler(setCreateForm)} required />
                 </div>
 
                 <button type="submit" style={styles.primaryBtn}>
@@ -236,7 +274,6 @@ export default function App() {
             </form>
           </section>
 
-          {/* Правая колонка */}
           <section style={{ ...styles.card, ...styles.tableCard, ...styles.cardLift }}>
             <div style={styles.tableHeader}>
               <div>
@@ -261,92 +298,64 @@ export default function App() {
                 </thead>
 
                 <tbody>
-                  {loading ? (
-                    <>
-                      <SkeletonRow />
-                      <SkeletonRow />
-                      <SkeletonRow />
-                      <SkeletonRow />
-                      <SkeletonRow />
-                    </>
-                  ) : sorted.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} style={{ ...styles.td, padding: 18, opacity: 0.7 }}>
-                        Пока пусто. Добавь сотрудника слева 🙂
-                      </td>
-                    </tr>
-                  ) : (
-                    sorted.map((emp) => (
-                      <tr key={emp.id} style={styles.tr}>
-                        <td style={styles.tdMono}>{emp.identificator}</td>
-                        <td style={styles.td}>{emp.name}</td>
-                        <td style={styles.td}>{emp.surname}</td>
-                        <td style={styles.td}>{emp.patronymic ?? ""}</td>
-                        <td style={styles.td}>{emp.position}</td>
-                        <td style={styles.tdMono}>{emp.salary}</td>
-                        <td style={{ ...styles.td, textAlign: "right" }}>
-                          <button style={styles.iconBtn} onClick={() => openEdit(emp)} title="Edit">
-                            ✏️
-                          </button>
-                          <button style={{ ...styles.iconBtn, ...styles.dangerIconBtn }} onClick={() => removeEmployee(emp)} title="Delete">
-                            🗑️
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  {tableRows}
                 </tbody>
               </table>
             </div>
           </section>
         </main>
 
-        <Modal open={!!editing} title={`Редактирование: #${editing?.identificator ?? ""}`} onClose={closeEdit}>
-          <div style={styles.modalGrid}>
-            <div style={styles.field}>
-              <label style={styles.label}>identificator</label>
-              <input style={styles.input} name="identificator" value={editForm.identificator} onChange={onChange(setEditForm)} required />
-            </div>
-
-            <div style={styles.row2}>
+        {renderModal({
+          open: !!editing,
+          title: `Редактирование: #${editing?.identificator ?? ""}`,
+          onClose: closeEdit,
+          children: (
+            <div style={styles.modalGrid}>
               <div style={styles.field}>
-                <label style={styles.label}>name</label>
-                <input style={styles.input} name="name" value={editForm.name} onChange={onChange(setEditForm)} required />
-              </div>
-              <div style={styles.field}>
-                <label style={styles.label}>surname</label>
-                <input style={styles.input} name="surname" value={editForm.surname} onChange={onChange(setEditForm)} required />
-              </div>
-            </div>
-
-            <div style={styles.row2}>
-              <div style={styles.field}>
-                <label style={styles.label}>patronymic</label>
-                <input style={styles.input} name="patronymic" value={editForm.patronymic} onChange={onChange(setEditForm)} />
-              </div>
-              <div style={styles.field}>
-                <label style={styles.label}>position</label>
-                <input style={styles.input} name="position" value={editForm.position} onChange={onChange(setEditForm)} required />
-              </div>
-            </div>
-
-            <div style={styles.row2}>
-              <div style={styles.field}>
-                <label style={styles.label}>salary</label>
-                <input style={styles.input} name="salary" value={editForm.salary} onChange={onChange(setEditForm)} required />
+                <label htmlFor="edit-identificator" style={styles.label}>identificator</label>
+                <input id="edit-identificator" style={styles.input} name="identificator" value={editForm.identificator} onChange={createChangeHandler(setEditForm)} required />
               </div>
 
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "end" }}>
-                <button style={styles.secondaryBtn} onClick={closeEdit} type="button">
-                  Cancel
-                </button>
-                <button style={styles.primaryBtn} onClick={saveEdit} type="button">
-                  Save
-                </button>
+              <div style={styles.row2}>
+                <div style={styles.field}>
+                  <label htmlFor="edit-name" style={styles.label}>name</label>
+                  <input id="edit-name" style={styles.input} name="name" value={editForm.name} onChange={createChangeHandler(setEditForm)} required />
+                </div>
+                <div style={styles.field}>
+                  <label htmlFor="edit-surname" style={styles.label}>surname</label>
+                  <input id="edit-surname" style={styles.input} name="surname" value={editForm.surname} onChange={createChangeHandler(setEditForm)} required />
+                </div>
+              </div>
+
+              <div style={styles.row2}>
+                <div style={styles.field}>
+                  <label htmlFor="edit-patronymic" style={styles.label}>patronymic</label>
+                  <input id="edit-patronymic" style={styles.input} name="patronymic" value={editForm.patronymic} onChange={createChangeHandler(setEditForm)} />
+                </div>
+                <div style={styles.field}>
+                  <label htmlFor="edit-position" style={styles.label}>position</label>
+                  <input id="edit-position" style={styles.input} name="position" value={editForm.position} onChange={createChangeHandler(setEditForm)} required />
+                </div>
+              </div>
+
+              <div style={styles.row2}>
+                <div style={styles.field}>
+                  <label htmlFor="edit-salary" style={styles.label}>salary</label>
+                  <input id="edit-salary" style={styles.input} name="salary" value={editForm.salary} onChange={createChangeHandler(setEditForm)} required />
+                </div>
+
+                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "end" }}>
+                  <button style={styles.secondaryBtn} onClick={closeEdit} type="button">
+                    Cancel
+                  </button>
+                  <button style={styles.primaryBtn} onClick={saveEdit} type="button">
+                    Save
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </Modal>
+          ),
+        })}
       </div>
     </div>
   );
@@ -363,7 +372,6 @@ const styles = {
     padding: "22px 18px 26px",
   },
 
-  // animated blobs (простая “динамика” без canvas)
   blob1: {
     position: "absolute",
     inset: "auto auto -260px -280px",
@@ -399,7 +407,7 @@ const styles = {
   },
 
   shell: {
-    maxWidth: 1500,           // было меньше — теперь шире на 1920
+    maxWidth: 1500,
     margin: "0 auto",
     position: "relative",
     zIndex: 2,
@@ -604,7 +612,6 @@ const styles = {
     borderColor: "rgba(255, 107, 107, 0.25)",
   },
 
-  // skeleton shimmer
   skel: {
     height: 12,
     borderRadius: 999,
@@ -623,18 +630,26 @@ const styles = {
     animation: "fadeIn 520ms ease-out",
   },
 
-  // modal
-  backdrop: {
+  modalLayer: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.62)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     padding: 18,
     zIndex: 50,
   },
+  backdrop: {
+    position: "absolute",
+    inset: 0,
+    border: 0,
+    padding: 0,
+    background: "rgba(0,0,0,0.62)",
+    cursor: "pointer",
+  },
   modal: {
+    position: "relative",
+    zIndex: 1,
     width: "min(780px, 100%)",
     borderRadius: 22,
     border: "1px solid rgba(255,255,255,0.14)",
@@ -664,8 +679,6 @@ const styles = {
   },
 };
 
-// ⚡️ Небольшой CSS для hover + keyframes (вставляем через <style>)
-// (в React можно просто рендерить один раз)
 const css = `
   @keyframes shimmer { 
     0% { background-position: 200% 0; } 
@@ -702,10 +715,10 @@ const css = `
 `;
 
 (function injectCssOnce() {
-  if (typeof document === "undefined") return;
-  if (document.getElementById("__ui_css")) return;
-  const s = document.createElement("style");
+  if (typeof globalThis.document === "undefined") return;
+  if (globalThis.document.getElementById("__ui_css")) return;
+  const s = globalThis.document.createElement("style");
   s.id = "__ui_css";
   s.textContent = css;
-  document.head.appendChild(s);
+  globalThis.document.head.appendChild(s);
 })();

@@ -1,5 +1,6 @@
 package com.devops.api.controller;
 
+import com.devops.api.dto.EmployeeRequest;
 import com.devops.api.model.Employee;
 import com.devops.api.repository.EmployeeRepository;
 import com.devops.api.service.EmployeeService;
@@ -29,13 +30,14 @@ public class EmployeeController {
     }
 
     @PostMapping("/employees")
-    public ResponseEntity<String> createEmployee(@Valid @RequestBody Employee employee) {
-        if (repository.existsEmployeeByIdentificator(employee.getIdentificator())) {
+    public ResponseEntity<String> createEmployee(@Valid @RequestBody EmployeeRequest request) {
+        if (repository.existsEmployeeByIdentificator(request.getIdentificator())) {
             return ResponseEntity.
                     status(HttpStatus.CONFLICT)
                     .body("Employee already exists");
         }
 
+        Employee employee = toEmployee(request, null);
         return employeeService.createUser(employee);
     }
 
@@ -48,12 +50,12 @@ public class EmployeeController {
     @PutMapping("/employees/{id}")
     public ResponseEntity<String> updateEmployee(
             @PathVariable UUID id,
-            @RequestBody Employee employee) {
+            @Valid @RequestBody EmployeeRequest request) {
         if (!repository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
 
-        employee.setId(id);
+        Employee employee = toEmployee(request, id);
         return employeeService.updateUser(employee);
     }
 
@@ -64,5 +66,17 @@ public class EmployeeController {
         }
 
         return employeeService.deleteEmployee(identificator);
+    }
+
+    private static Employee toEmployee(EmployeeRequest request, UUID id) {
+        Employee employee = new Employee();
+        employee.setId(id);
+        employee.setIdentificator(request.getIdentificator());
+        employee.setName(request.getName());
+        employee.setSurname(request.getSurname());
+        employee.setPatronymic(request.getPatronymic());
+        employee.setPosition(request.getPosition());
+        employee.setSalary(request.getSalary());
+        return employee;
     }
 }

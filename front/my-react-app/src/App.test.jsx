@@ -75,7 +75,7 @@ function fillCreateForm(container, values = {}) {
 }
 
 describe("App", () => {
-    const originalConfirm = window.confirm;
+    const originalConfirm = globalThis.confirm;
 
     beforeEach(() => {
         apiMocks.fetchEmployees.mockReset();
@@ -91,12 +91,12 @@ describe("App", () => {
             [...items].sort((a, b) => Number(a.identificator) - Number(b.identificator))
         );
 
-        window.confirm = vi.fn(() => true);
+        globalThis.confirm = vi.fn(() => true);
     });
 
     afterEach(() => {
         cleanup();
-        window.confirm = originalConfirm;
+        globalThis.confirm = originalConfirm;
     });
 
     it("показывает skeleton при загрузке и затем рендерит сотрудников в отсортированном виде", async () => {
@@ -308,7 +308,7 @@ describe("App", () => {
 
         fireEvent.click(screen.getByTitle("Delete"));
 
-        expect(window.confirm).toHaveBeenCalledWith(
+        expect(globalThis.confirm).toHaveBeenCalledWith(
             "Удалить сотрудника #55 (Petr Sokolov)?"
         );
 
@@ -320,7 +320,7 @@ describe("App", () => {
     });
 
     it("не удаляет сотрудника, если пользователь отменил confirm", async () => {
-        window.confirm = vi.fn(() => false);
+        globalThis.confirm = vi.fn(() => false);
 
         const employee = {
             id: 5,

@@ -1,9 +1,11 @@
 package com.devops.api.controller;
 
+import com.devops.api.dto.EmployeeRequest;
 import com.devops.api.model.Employee;
 import com.devops.api.repository.EmployeeRepository;
 import com.devops.api.service.EmployeeService;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -22,8 +24,7 @@ class EmployeeControllerUnitTest {
         EmployeeService service = mock(EmployeeService.class);
         EmployeeController controller = new EmployeeController(repo, service);
 
-        Employee payload = new Employee();
-        payload.setIdentificator(1);
+        EmployeeRequest payload = request(1);
 
         when(repo.existsEmployeeByIdentificator(1)).thenReturn(true);
 
@@ -40,17 +41,24 @@ class EmployeeControllerUnitTest {
         EmployeeService service = mock(EmployeeService.class);
         EmployeeController controller = new EmployeeController(repo, service);
 
-        Employee payload = new Employee();
-        payload.setIdentificator(1);
+        EmployeeRequest payload = request(1);
 
         when(repo.existsEmployeeByIdentificator(1)).thenReturn(false);
-        when(service.createUser(payload)).thenReturn(ResponseEntity.status(HttpStatus.CREATED).body("Employee created"));
+        when(service.createUser(any(Employee.class))).thenReturn(ResponseEntity.status(HttpStatus.CREATED).body("Employee created"));
 
         ResponseEntity<String> res = controller.createEmployee(payload);
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(res.getBody()).isEqualTo("Employee created");
-        verify(service).createUser(payload);
+        ArgumentCaptor<Employee> employee = ArgumentCaptor.forClass(Employee.class);
+        verify(service).createUser(employee.capture());
+        assertThat(employee.getValue().getId()).isNull();
+        assertThat(employee.getValue().getIdentificator()).isEqualTo(1);
+        assertThat(employee.getValue().getName()).isEqualTo("Ivan");
+        assertThat(employee.getValue().getSurname()).isEqualTo("Petrov");
+        assertThat(employee.getValue().getPatronymic()).isEqualTo("Ivanovich");
+        assertThat(employee.getValue().getPosition()).isEqualTo("Developer");
+        assertThat(employee.getValue().getSalary()).isEqualTo(1000);
     }
 
     @Test
@@ -74,7 +82,7 @@ class EmployeeControllerUnitTest {
         EmployeeController controller = new EmployeeController(repo, service);
 
         UUID id = UUID.randomUUID();
-        Employee payload = new Employee();
+        EmployeeRequest payload = request(1);
 
         when(repo.existsById(id)).thenReturn(false);
 
@@ -91,7 +99,7 @@ class EmployeeControllerUnitTest {
         EmployeeController controller = new EmployeeController(repo, service);
 
         UUID id = UUID.randomUUID();
-        Employee payload = new Employee();
+        EmployeeRequest payload = request(1);
 
         when(repo.existsById(id)).thenReturn(true);
         when(service.updateUser(any(Employee.class))).thenReturn(ResponseEntity.ok("Employee updated"));
@@ -100,8 +108,15 @@ class EmployeeControllerUnitTest {
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(res.getBody()).isEqualTo("Employee updated");
-        assertThat(payload.getId()).isEqualTo(id);
-        verify(service).updateUser(payload);
+        ArgumentCaptor<Employee> employee = ArgumentCaptor.forClass(Employee.class);
+        verify(service).updateUser(employee.capture());
+        assertThat(employee.getValue().getId()).isEqualTo(id);
+        assertThat(employee.getValue().getIdentificator()).isEqualTo(1);
+        assertThat(employee.getValue().getName()).isEqualTo("Ivan");
+        assertThat(employee.getValue().getSurname()).isEqualTo("Petrov");
+        assertThat(employee.getValue().getPatronymic()).isEqualTo("Ivanovich");
+        assertThat(employee.getValue().getPosition()).isEqualTo("Developer");
+        assertThat(employee.getValue().getSalary()).isEqualTo(1000);
     }
 
     @Test
@@ -131,5 +146,16 @@ class EmployeeControllerUnitTest {
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         verify(service).deleteEmployee(123);
+    }
+
+    private EmployeeRequest request(Integer identificator) {
+        EmployeeRequest request = new EmployeeRequest();
+        request.setIdentificator(identificator);
+        request.setName("Ivan");
+        request.setSurname("Petrov");
+        request.setPatronymic("Ivanovich");
+        request.setPosition("Developer");
+        request.setSalary(1000);
+        return request;
     }
 }
